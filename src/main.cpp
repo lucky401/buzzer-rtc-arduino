@@ -2,6 +2,10 @@
 #include <virtuabotixRTC.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+#include <ArduinoJson.h>
+
+SoftwareSerial ESP8266(3, 2);
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
@@ -41,9 +45,10 @@ void setup()
   lcd.backlight();
 
   Serial.begin(9600);
+  ESP8266.begin(9600);
   // Set the current date, and time in the following format:
   // seconds, minutes, hours, day of the week, day of the month, month, year
-  myRTC.setDS1302Time(50, 0, 10, 6, 14, 7, 2023);
+  myRTC.setDS1302Time(50, 0, 11, 6, 14, 7, 2023);
 
   pinMode(buzzer, OUTPUT);
 }
@@ -53,19 +58,38 @@ void loop()
   // This allows for the update of variables for time or accessing the individual elements.
   myRTC.updateTime();
 
+  while (ESP8266.available() > 0)
+  {
+    StaticJsonDocument<300> doc;
+    DeserializationError err = deserializeJson(doc, ESP8266);
+
+    if (err == DeserializationError::Ok)
+    {
+      buzzerFrequency = doc["buzzerFrequency"].as<long>();
+    }
+    else
+    {
+      Serial.print("deserializeJson() returned ");
+      Serial.println(err.c_str());
+
+      while (ESP8266.available() > 0)
+        ESP8266.read();
+    }
+  }
+
   if (myRTC.hours == buzzerOnHourArray[0] && myRTC.minutes == buzzerOnMinuteArray[0])
   {
-    Serial.println("Buzzer On");
+    // Serial.println("Buzzer On");
     setBuzzerFrequency(buzzerFrequency);
   }
   else if (myRTC.hours == buzzerOnHourArray[1] && myRTC.minutes == buzzerOnMinuteArray[1])
   {
-    Serial.println("Buzzer On");
+    // Serial.println("Buzzer On");
     setBuzzerFrequency(buzzerFrequency);
   }
   else
   {
-    Serial.println("Buzzer Off");
+    // Serial.println("Buzzer Off");
     noTone(buzzer);
   }
 
